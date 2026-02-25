@@ -1,0 +1,62 @@
+click>=8.1.8,<9.0 
+
+# Keep crewai at version 0.130.0
+# Other package versions are flexible and can be changed
+# Only change crewai version if there are critical dependency conflicts that cannot be resolved by other means
+crewai==0.130.0 
+crewai-tools==0.47.1
+
+fastapi>=0.115.9,<1.0
+uvicorn==0.29.0   # Added: Required to run FastAPI server
+
+# =========================================================
+# BUG FIX:
+# Original file included many Google Cloud and OpenTelemetry
+# dependencies which were not used anywhere in the project.
+# These caused dependency conflicts (protobuf, grpc, etc.)
+# and unnecessary installation overhead.
+#
+# Removed packages:
+# google-ai-generativelanguage
+# google-api-core
+# google-api-python-client
+# google-auth*
+# google-cloud-*
+# google-generativeai
+# googleapis-common-protos
+# opentelemetry-*
+# onnxruntime
+#
+# Reason: Not required for project functionality.
+# =========================================================
+
+
+# Environment configuration
+python-dotenv==1.0.1   # Added: Needed for loading API keys from .env
+
+
+# LLM Providers
+openai>=1.68.2,<2.0
+groq==0.9.0   # Added: Using Groq API for LLM
+
+
+# LangChain ecosystem for PDF loading
+langchain-core>=0.1.52
+langchain-community>=0.0.38   # Added: Required for PyPDFLoader
+pypdf>=4.2.0                  # Added: Required for PDF parsing
+
+
+# Utilities
+pandas==2.2.2
+numpy==1.26.4
+pillow==10.3.0
+
+
+protobuf>=5.0,<6.0
+
+pydantic>=2.4.2
+
+Jinja2==3.1.4
+jsonschema==4.22.0
+oauthlib==3.2.2
+langsmith>=0.3.45,<1.0
