@@ -1,52 +1,36 @@
 ## Importing libraries and files
 import os
+import re
 from dotenv import load_dotenv
 load_dotenv()
 
-# =========================================================
-# BUG FIX 1:
-# Original code imported: from crewai_tools import tools ❌ (unused)
-# Removed unnecessary import.
-# =========================================================
-
 from crewai.tools import tool
 from crewai_tools import SerperDevTool
-
-# =========================================================
-# BUG FIX 2:
-# Pdf class was not defined anywhere ❌
-# Using correct PDF loader from langchain.
-# =========================================================
 from langchain_community.document_loaders import PyPDFLoader
 
 
-## Creating search tool
+# =========================================================
+# Search Tool
+# =========================================================
 search_tool = SerperDevTool()
 
 
-## Creating custom pdf reader tool
+# =========================================================
+# Financial Document Tool (FINAL IMPROVED VERSION)
+# =========================================================
 class FinancialDocumentTool:
 
-    # =========================================================
-    # BUG FIX 3:
-    # Original function was async ❌
-    # CrewAI tools should be synchronous unless configured.
-    # Converted to normal function.
-    # =========================================================
-
-    # =========================================================
-    # BUG FIX 4:
-    # Tool decorator missing ❌
-    # Added @tool so agent can call this function.
-    # =========================================================
     @staticmethod
-    @tool("Read Financial Document")
-    def read_data_tool(path: str = 'data/sample.pdf'):
+    def _read_data_internal(path: str = "data/sample.pdf"):
         """
-        Read and extract text content from a financial PDF document.
+        Reads and extracts relevant financial text from PDF.
 
-        This tool loads the PDF file from the provided path and returns
-        the complete textual content for financial analysis.
+        Improvements:
+        - Financial keyword scoring
+        - Numeric density scoring
+        - Currency/percentage detection
+        - Better page ranking
+        - Token-safe truncation
         """
 
         if not os.path.exists(path):
@@ -54,73 +38,139 @@ class FinancialDocumentTool:
 
         loader = PyPDFLoader(path)
         docs = loader.load()
-        docs = docs[:5]
+
+        # =====================================================
+        # FINANCIAL KEYWORDS
+        # =====================================================
+        financial_keywords = [
+            "revenue", "income", "profit", "loss", "cash",
+            "balance", "assets", "liabilities", "equity",
+            "ebitda", "margin", "expenses", "financial",
+            "operations", "statement", "net income",
+            "cash flow", "operating", "cost", "debt",
+            "free cash", "capex", "guidance", "outlook"
+        ]
+
+        scored_pages = []
+
+        for doc in docs:
+            text = doc.page_content.lower()
+
+            score = 0
+
+            # -------------------------------------------------
+            # Keyword score
+            # -------------------------------------------------
+            keyword_hits = sum(keyword in text for keyword in financial_keywords)
+            score += keyword_hits * 3
+
+            # -------------------------------------------------
+            # Numeric density boost (financial tables)
+            # -------------------------------------------------
+            numbers = re.findall(r"\d+", text)
+            score += len(numbers) // 4
+
+            # -------------------------------------------------
+            # Currency / percentage boost
+            # -------------------------------------------------
+            currency_symbols = ["$", "€", "£", "%"]
+            score += sum(symbol in text for symbol in currency_symbols) * 2
+
+            # -------------------------------------------------
+            # Table indicators
+            # -------------------------------------------------
+            table_words = ["total", "cost", "margin", "q1", "q2", "q3", "q4"]
+            score += sum(word in text for word in table_words)
+
+            if score > 2:
+                scored_pages.append((score, doc))
+
+        # =====================================================
+        # SORT PAGES BY SCORE
+        # =====================================================
+        scored_pages.sort(key=lambda x: x[0], reverse=True)
+
+        # =====================================================
+        # SELECT TOP PAGES
+        # =====================================================
+        MAX_PAGES = 6
+        filtered_docs = [doc for score, doc in scored_pages[:MAX_PAGES]]
+
+        # Fallback
+        if not filtered_docs:
+            filtered_docs = docs[:4]
+
+        # =====================================================
+        # MERGE CONTENT
+        # =====================================================
         full_report = ""
-        for data in docs:
+
+        for data in filtered_docs:
             content = data.page_content
 
-            # Clean formatting
-            while "\n\n" in content:
-                content = content.replace("\n\n", "\n")
+            # Normalize spacing
+            content = re.sub(r"\n\s*\n", "\n", content)
 
             full_report += content + "\n"
+
+        # =====================================================
+        # TOKEN SAFETY (VERY IMPORTANT)
+        # =====================================================
+        MAX_CHARS = 3000
+        full_report = full_report[:MAX_CHARS]
 
         return full_report
 
 
-## Creating Investment Analysis Tool
+    @staticmethod
+    @tool("Read Financial Document")
+    def read_data_tool(path: str = "data/sample.pdf"):
+        """
+        Read and extract relevant financial text from a PDF.
+        Optimized for LLM financial analysis.
+        """
+        return FinancialDocumentTool._read_data_internal(path)
+
+
+# =========================================================
+# Investment Tool
+# =========================================================
 class InvestmentTool:
 
-    # =========================================================
-    # BUG FIX:
-    # Converted async → sync for CrewAI compatibility.
-    # Added missing docstring (required by CrewAI tool decorator).
-    # =========================================================
     @staticmethod
     @tool("Investment Analysis Tool")
     def analyze_investment_tool(financial_document_data: str):
         """
-        Analyze financial document data and generate investment insights.
-
-        This tool processes extracted financial text and prepares it for
-        downstream investment recommendation tasks.
+        Analyze financial document data and prepare for investment insights.
         """
 
         processed_data = financial_document_data
 
-        # Basic whitespace cleanup
         i = 0
         while i < len(processed_data):
-            if processed_data[i:i+2] == "  ":
-                processed_data = processed_data[:i] + processed_data[i+1:]
+            if processed_data[i:i + 2] == "  ":
+                processed_data = processed_data[:i] + processed_data[i + 1:]
             else:
                 i += 1
 
-        # Placeholder for advanced logic
         return (
             "Investment analysis preprocessing completed. "
             "Data is ready for financial evaluation."
         )
 
 
-## Creating Risk Assessment Tool
+# =========================================================
+# Risk Tool
+# =========================================================
 class RiskTool:
 
-    # =========================================================
-    # BUG FIX:
-    # Converted async → sync for CrewAI compatibility.
-    # Added missing docstring (required by CrewAI tool decorator).
-    # =========================================================
     @staticmethod
     @tool("Risk Assessment Tool")
     def create_risk_assessment_tool(financial_document_data: str):
         """
         Generate risk assessment insights from financial data.
-
-        This tool prepares financial information for risk evaluation tasks.
         """
 
-        # Placeholder for future risk processing logic
         return (
             "Risk assessment preprocessing completed. "
             "Financial data is ready for risk evaluation."

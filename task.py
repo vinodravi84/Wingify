@@ -1,181 +1,160 @@
 ## Importing libraries and files
 from crewai import Task
 
+# Updated agents (ONLY 2)
 from agents import financial_analyst, verifier
-from tools import FinancialDocumentTool
 
 
 # =========================================================
-# TASK 1 — Comprehensive Financial Analysis
-# =========================================================
-analyze_financial_document = Task(
-    description="""
-You are given a financial document and a user query.
-
-IMPORTANT:
-The financial document file path is: {file_path}
-
-Your job is to perform a professional financial analysis based strictly on the
-contents of the document.
-
-Instructions:
-
-1. Use the "Read Financial Document" tool with the provided file path.
-2. Identify key financial metrics such as:
-   - Revenue
-   - Profit / Net Income
-   - Expenses
-   - Growth trends
-   - Margins
-   - Debt and liabilities
-   - Cash flow indicators
-3. Extract meaningful insights relevant to the user query: {query}
-4. Provide investment insights based only on the document data.
-5. Highlight important financial strengths and weaknesses.
-6. Do NOT fabricate information or external data.
-7. If information is missing, clearly state assumptions or limitations.
-8. Maintain professional financial reasoning.
-""",
-
-    expected_output="""
-Provide a structured financial analysis report with the following sections:
-
-1. Executive Summary
-2. Key Financial Highlights
-3. Performance Analysis
-4. Investment Insights
-5. Risk Factors Identified
-6. Market or Strategic Observations
-7. Final Recommendation
-
-The response should be professional, accurate, and grounded in the document.
-""",
-
-    agent=financial_analyst,
-    tools=[FinancialDocumentTool.read_data_tool],
-    async_execution=False,
-)
-
-
-# =========================================================
-# TASK 2 — Investment Recommendation
-# =========================================================
-investment_analysis = Task(
-    description="""
-IMPORTANT:
-The financial document file path is: {file_path}
-
-Based on the financial document, generate investment recommendations.
-
-Instructions:
-
-1. Use the "Read Financial Document" tool with the provided file path.
-2. Evaluate company performance, financial stability, and growth potential.
-3. Identify possible investment opportunities or concerns.
-4. Consider valuation signals if present.
-5. Align recommendations with realistic financial reasoning.
-6. Avoid speculation without evidence.
-7. If insufficient data exists, clearly mention uncertainty.
-
-User query: {query}
-""",
-
-    expected_output="""
-Provide investment recommendations including:
-
-- Investment Outlook (Positive / Neutral / Negative)
-- Supporting Financial Evidence
-- Potential Opportunities
-- Key Concerns
-- Suggested Investor Profile (Conservative / Moderate / Aggressive)
-- Recommendation Summary
-""",
-
-    agent=financial_analyst,
-    tools=[FinancialDocumentTool.read_data_tool],
-    async_execution=False,
-)
-
-
-# =========================================================
-# TASK 3 — Risk Assessment
-# =========================================================
-risk_assessment = Task(
-    description="""
-IMPORTANT:
-The financial document file path is: {file_path}
-
-Analyze financial risks based on the uploaded document.
-
-Instructions:
-
-1. Use the "Read Financial Document" tool with the provided file path.
-2. Identify financial, operational, and market risks from the document.
-3. Evaluate:
-   - Debt levels
-   - Profit volatility
-   - Cash flow stability
-   - Dependency risks
-   - Macroeconomic exposure (if mentioned)
-4. Categorize risks by severity level.
-5. Provide realistic mitigation considerations if applicable.
-6. Do not exaggerate risks beyond evidence.
-
-User query: {query}
-""",
-
-    expected_output="""
-Provide a structured risk report:
-
-- Key Risk Factors
-- Risk Severity (Low / Medium / High)
-- Financial Stability Assessment
-- Potential Future Concerns
-- Risk Mitigation Observations
-- Overall Risk Rating
-""",
-
-    agent=financial_analyst,
-    tools=[FinancialDocumentTool.read_data_tool],
-    async_execution=False,
-)
-
-
-# =========================================================
-# TASK 4 — Document Verification
+# TASK 1 — Document Verification
 # =========================================================
 verification = Task(
     description="""
+You are a financial document verification specialist.
+
 IMPORTANT:
-The financial document file path is: {file_path}
+Financial document content:
+{document_text}
 
-Verify whether the uploaded file is a financial document.
+Your task is to determine whether the uploaded file contains genuine financial
+or business-related information.
 
-Instructions:
+Reasoning Steps:
 
-1. Use the "Read Financial Document" tool with the provided file path.
-2. Determine whether the document contains financial information.
-3. Identify indicators such as:
+1. Carefully read the document content.
+2. Look for indicators such as:
    - Financial statements
-   - Earnings reports
-   - Balance sheet data
    - Revenue or expense figures
-4. If not financial, clearly state the reason.
-5. Do not assume or hallucinate.
+   - Profit or loss metrics
+   - Balance sheet or cash flow data
+   - Operational or business metrics
+3. Evaluate whether the document is financial in nature.
+4. If it is NOT financial, clearly explain why.
 
-Provide a factual verification result.
+Rules:
+
+- Do NOT assume information.
+- Do NOT hallucinate missing data.
+- Base conclusions ONLY on the provided content.
+- Be precise and evidence-driven.
 """,
 
     expected_output="""
-Provide:
+Return ONLY valid JSON in the following format:
 
-- Document Type Identification
-- Confidence Level (High / Medium / Low)
-- Supporting Evidence
-- Verification Conclusion
+{
+  "verification": {
+    "document_type": "",
+    "confidence_level": "",
+    "supporting_evidence": "",
+    "conclusion": ""
+  }
+}
+
+Rules:
+- Output only JSON
+- No markdown
+- No extra text
 """,
 
     agent=verifier,
-    tools=[FinancialDocumentTool.read_data_tool],
     async_execution=False
+)
+
+
+# =========================================================
+# TASK 2 — Comprehensive Financial Analysis
+# =========================================================
+analyze_financial_document = Task(
+    description="""
+You are a senior financial analyst and investment strategist.
+
+IMPORTANT:
+Financial document content:
+{document_text}
+
+User query:
+{query}
+
+Your objective is to perform a deep, professional financial analysis using ONLY
+the information provided in the document.
+
+You MUST follow this reasoning workflow:
+
+STEP 1 — Verification Awareness
+Confirm that the document contains financial information.
+
+STEP 2 — Financial Extraction
+Identify and extract:
+- Revenue
+- Net income / profit
+- Expenses
+- Margins
+- Cash flow
+- Debt or liabilities
+- Growth indicators
+
+STEP 3 — Performance Interpretation
+Analyze trends, strengths, weaknesses, and operational signals.
+
+STEP 4 — Investment Evaluation
+Derive investment insights supported by financial evidence.
+
+STEP 5 — Risk Assessment
+Identify realistic financial and business risks based on data.
+
+Critical Rules:
+
+- Use ONLY the provided document content.
+- Do NOT fabricate numbers or facts.
+- If information is missing → explicitly state limitation.
+- Avoid generic statements.
+- Provide analytical reasoning like a professional analyst.
+- Output MUST be valid JSON.
+- Do NOT include any text outside JSON.
+""",
+
+    expected_output="""
+Return ONLY valid JSON in the following structure:
+
+{
+  "verification": {
+    "document_type": "",
+    "confidence_level": "",
+    "supporting_evidence": "",
+    "conclusion": ""
+  },
+  "financial_analysis": {
+    "key_metrics": "",
+    "performance_trends": "",
+    "strengths": "",
+    "weaknesses": "",
+    "observations": ""
+  },
+  "investment_insights": {
+    "outlook": "",
+    "supporting_evidence": "",
+    "opportunities": "",
+    "concerns": "",
+    "investor_profile": ""
+  },
+  "risk_assessment": {
+    "key_risks": "",
+    "risk_severity": "",
+    "financial_stability": "",
+    "future_concerns": "",
+    "overall_rating": ""
+  }
+}
+
+Rules:
+
+- Output ONLY JSON.
+- No markdown formatting.
+- No explanation text.
+- No extra characters before or after JSON.
+""",
+
+    agent=financial_analyst,
+    async_execution=False,
 )

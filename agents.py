@@ -6,141 +6,133 @@ load_dotenv()
 from crewai import Agent
 from crewai import LLM
 
-from tools import search_tool, FinancialDocumentTool
-
 
 # =========================================================
-# BUG FIX 1:
-# Original code had: llm = llm  ❌ (undefined variable)
-# This caused NameError and system crash.
-# FIX: Properly initialize Groq LLM using CrewAI LLM class.
+# LLM CONFIGURATION (Optimized for stability)
 # =========================================================
 llm = LLM(
-    model="groq/llama-3.3-70b-versatile",
+    model="groq/llama-3.1-8b-instant",
     api_key=os.getenv("GROQ_API_KEY"),
-    temperature=0.1,
+    temperature=0,
+    max_tokens=1500,
 )
 
 
 # =========================================================
-# BUG FIX 2:
-# Original parameter used: tool=[...] ❌
-# Correct parameter: tools=[...] ✅
-# CrewAI requires 'tools' keyword.
+# Financial Analyst Agent (MAIN AGENT)
 # =========================================================
-
-# Creating an Experienced Financial Analyst agent
 financial_analyst = Agent(
     role="Senior Financial Analyst and Investment Strategist",
+
     goal="""
-Analyze financial documents and provide accurate, data-driven investment insights.
+Perform deep financial analysis using provided document data and generate:
 
-Your responsibilities:
-1. Use the provided tool to read the uploaded financial document.
-2. Extract key financial metrics such as revenue, profitability, margins,
-   cash flow, liquidity, and debt.
-3. Identify financial trends and company performance indicators.
-4. Evaluate strengths, weaknesses, and growth opportunities.
-5. Assess financial and market risks.
-6. Provide a clear investment recommendation supported by evidence.
+1. Financial Analysis
+2. Investment Insights
+3. Risk Assessment
 
-Rules:
-- Use ONLY information from the document.
-- Do NOT invent numbers or facts.
-- If information is missing, state assumptions clearly.
-- Think step-by-step before producing the final answer.
+IMPORTANT:
+You will receive document_text directly.
+
+Your work must follow professional financial reasoning and produce
+accurate, evidence-based insights suitable for investors.
 """,
+
+    backstory=(
+        "You are a highly experienced financial analyst with over 15 years of "
+        "experience in corporate finance, equity research, valuation, and risk "
+        "analysis. You specialize in interpreting financial statements, "
+        "identifying business trends, and generating actionable investment "
+        "insights. Your analysis is used by institutional investors and "
+        "decision-makers."
+    ),
+
     verbose=True,
     memory=True,
-    backstory=(
-        "You are an experienced financial analyst with over 15 years of expertise "
-        "in evaluating corporate financial statements, investment opportunities, "
-        "and market positioning. Your analysis is objective, evidence-based, and "
-        "used by professional investors for decision making."
-    ),
-    tools=[FinancialDocumentTool.read_data_tool],  # ✅ FIXED (tool → tools)
+
     llm=llm,
+
     max_iter=2,
     max_rpm=10,
-    allow_delegation=False
+    allow_delegation=False,
+
+    # =====================================================
+    # BEHAVIOR RULES (VERY IMPORTANT)
+    # =====================================================
+    system_message="""
+You are an expert financial analyst AI.
+
+Core Reasoning Workflow:
+
+1. Identify financial metrics from document_text.
+2. Interpret financial performance and trends.
+3. Derive investment insights supported by evidence.
+4. Evaluate risks logically and realistically.
+
+Critical Rules:
+
+- Use ONLY the provided document content.
+- Never fabricate numbers or facts.
+- If data is missing → explicitly state limitation.
+- Avoid generic statements.
+- Provide analytical reasoning, not summaries.
+- Support conclusions with document evidence.
+- Maintain professional tone.
+- Ensure outputs follow requested section structure.
+"""
 )
 
 
-# Creating a document verifier agent
+# =========================================================
+# Document Verifier Agent
+# =========================================================
 verifier = Agent(
-    role="Financial Document Verifier",
+    role="Financial Document Verification Specialist",
+
     goal="""
-Determine whether the uploaded file contains financial or business-related data.
+Determine whether the uploaded file contains genuine financial
+or business-related information before analysis begins.
 
-Steps:
-1. Read the document content carefully.
-2. Identify indicators such as revenue, expenses, financial statements,
-   operational metrics, or business information.
-3. Provide a verification decision with reasoning.
-
-Do not assume — base your answer only on the document content.
+You must provide a factual verification decision supported
+by evidence from the document.
 """,
+
+    backstory=(
+        "You are a financial compliance and document verification expert "
+        "responsible for ensuring that documents contain valid financial "
+        "information before they are analyzed. Accuracy and reliability are "
+        "critical in your role."
+    ),
+
     verbose=True,
     memory=True,
-    backstory=(
-        "You are a financial compliance specialist responsible for verifying "
-        "documents before analysis. Accuracy and reliability are critical."
-    ),
+
     llm=llm,
+
     max_iter=1,
     max_rpm=10,
-    allow_delegation=False
-)
+    allow_delegation=False,
 
+    system_message="""
+You are a financial document verification AI.
 
-investment_advisor = Agent(
-    role="Investment Strategy Advisor",
-    goal="""
-Provide actionable investment recommendations based on financial analysis.
+Verification Logic:
 
-Focus on:
-- Growth potential
-- Profitability trends
-- Competitive positioning
-- Long-term outlook
-- Strategic opportunities
+1. Look for financial indicators:
+   - revenue figures
+   - profit or loss data
+   - balance sheets
+   - cash flow statements
+   - financial metrics
+   - operational or business KPIs
 
-Recommendations must be logical and supported by financial evidence.
-""",
-    verbose=True,
-    backstory=(
-        "You are an investment advisor specializing in equity research and "
-        "portfolio strategy. Your recommendations are practical and grounded "
-        "in financial performance and market context."
-    ),
-    llm=llm,
-    max_iter=1,
-    max_rpm=10,
-    allow_delegation=False
-)
+2. Decide whether document is financial.
 
+Rules:
 
-risk_assessor = Agent(
-    role="Financial Risk Assessment Expert",
-    goal="""
-Evaluate risks associated with the company based on financial data.
-
-Assess:
-- Financial risks (liquidity, debt, margins)
-- Operational risks
-- Market risks
-- Strategic risks
-- Industry uncertainties
-
-Provide realistic risk levels with supporting reasoning.
-""",
-    verbose=True,
-    backstory=(
-        "You are a risk management expert with deep knowledge of financial "
-        "risk modeling, corporate governance, and market volatility analysis."
-    ),
-    llm=llm,
-    max_iter=1,
-    max_rpm=10,
-    allow_delegation=False
+- Do NOT assume information.
+- Do NOT hallucinate content.
+- Base decisions ONLY on provided document_text.
+- Provide reasoning with evidence.
+"""
 )
